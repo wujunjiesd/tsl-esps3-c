@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>配置你的设备</title>
+<style>
+  :root{
+    --bg:#0b0e13; --card:#141a22; --card2:#1b2230; --line:#2a3341; --line2:#394456;
+    --text:#e8eef7; --dim:#8b98ab; --accent:#ff8a5c; --accent2:#ff6b3d;
+    --green:#3fd17f; --red:#f8615c;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:0 14px 40px; background:
+      radial-gradient(900px 380px at 15% -10%, #1d2635 0%, transparent 60%),
+      var(--bg);
+    color:var(--text); font-size:15px; line-height:1.5;
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px;margin:0 auto}
+
+  header{padding:22px 4px 16px}
+  header h1{margin:0;font-size:22px;letter-spacing:.5px}
+  header p{margin:6px 0 0;font-size:13px;color:var(--dim)}
+
+  .card{
+    background:linear-gradient(180deg,var(--card2),var(--card));
+    border:1px solid var(--line); border-radius:16px;
+    padding:16px; margin-bottom:14px;
+    box-shadow:0 6px 20px rgba(0,0,0,.28);
+  }
+  .card > h2{
+    margin:0 0 14px; font-size:13px; font-weight:600; letter-spacing:1.2px;
+    color:var(--dim); text-transform:uppercase;
+    display:flex; align-items:center; gap:8px;
+  }
+  .card > h2::before{
+    content:""; width:3px; height:13px; border-radius:2px; background:var(--accent);
+  }
+
+  /* ---- 状态行 ---- */
+  .stat{display:flex;flex-wrap:wrap;gap:8px}
+  .stat div{
+    flex:1 1 150px; background:#0e131b; border:1px solid var(--line);
+    border-radius:11px; padding:9px 12px;
+  }
+  .stat span{display:block;font-size:11px;color:var(--dim);margin-bottom:2px}
+  .stat b{font-weight:600;font-size:14px;word-break:break-all}
+  .ok{color:var(--green)} .no{color:var(--dim)}
+
+  /* ---- 表单 ---- */
+  label{display:block;font-size:12px;color:var(--dim);margin-bottom:6px}
+  input,select{
+    width:100%; padding:11px 34px 11px 12px; font-size:14px; color:var(--text);
+    background:#0e131b; border:1px solid var(--line2); border-radius:11px;
+  }
+  input{padding-right:12px}
+  input:focus,select:focus{
+    outline:none; border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(255,138,92,.16);
+  }
+  select{
+    appearance:none; -webkit-appearance:none; cursor:pointer;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath fill='%238b98ab' d='M1.4 0 6 4.6 10.6 0 12 1.4 6 7.4 0 1.4z'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 12px center;
+  }
+  optgroup{background:#0e131b;color:var(--dim);font-style:normal}
+  option{background:#0e131b;color:var(--text);padding:6px}
+
+  /* ---- 槽位网格 ---- */
+  .slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+  .slot{position:relative;padding-top:10px}
+  .slot .no{
+    position:absolute; top:0; left:0; width:19px; height:19px; border-radius:50%;
+    background:var(--accent); color:#141414; font-size:11px; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .slot label{margin-left:25px}
+  .cat-tag{
+    margin-top:6px; font-size:11px; color:var(--dim); min-height:14px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+
+  /* ---- 按钮 ---- */
+  .btns{display:flex;gap:10px;flex-wrap:wrap}
+  button{
+    flex:1 1 150px; padding:12px 14px; font-size:14px; font-weight:600; cursor:pointer;
+    border-radius:11px; border:1px solid var(--line2); background:#1c2431; color:var(--text);
+    transition:transform .12s ease, filter .12s ease;
+  }
+  button:active{transform:translateY(1px)}
+  button.primary{
+    border-color:transparent; color:#1a1005;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+  }
+  button.ghost{background:transparent}
+  button.danger{border-color:rgba(248,97,92,.5);color:var(--red);background:transparent}
+  .card.danger-zone{border-color:rgba(248,97,92,.28)}
+
+  .tip{font-size:12px;color:var(--dim);margin-top:10px}
+
+  #toast{
+    position:fixed; left:50%; bottom:26px; transform:translate(-50%,14px);
+    background:#1c2431; border:1px solid var(--line2); border-radius:12px;
+    padding:10px 18px; font-size:14px; opacity:0; pointer-events:none;
+    transition:.22s; box-shadow:0 8px 24px rgba(0,0,0,.4);
+  }
+  #toast.show{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>配置你的设备</h1>
+  <p>热点直连 · 配置仪表盘布局与车钥匙按钮</p>
+</header>
+
+<div class="card">
+  <h2>设备状态</h2>
+  <div class="stat">
+    <div><span>热点</span><b id="ap">--</b></div>
+    <div><span>VIN</span><b id="vin">--</b></div>
+    <div><span>配对</span><b id="paired">--</b></div>
+    <div><span>车机密钥</span><b id="hasKey">--</b></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>车辆 VIN</h2>
+  <label for="vinInput">17 位 VIN（修改后需重新配对，旧密钥会自动删除）</label>
+  <input id="vinInput" maxlength="17" placeholder="例如 5YJ3E1EA7KF000000"
+         autocomplete="off" autocapitalize="characters">
+  <div class="btns" style="margin-top:12px">
+    <button class="primary" onclick="saveVin()">保存 VIN</button>
+  </div>
+  <div class="tip">换车时改这一项即可；保存后设备会重启并进入配对流程。</div>
+</div>
+
+<div class="card">
+  <h2>仪表盘 6 个格子</h2>
+  <div class="slots" id="dashGrid"></div>
+  <div class="tip">选项按类别分组；任意一项都能选“不显示”，6 格按从左到右、从上到下排布。</div>
+</div>
+
+<div class="card">
+  <h2>车钥匙 4 个按钮</h2>
+  <div class="slots" id="keyGrid"></div>
+  <div class="tip">开关类命令已合并为一个按钮（如“车锁开关”），按当前状态自动取反。</div>
+</div>
+
+<div class="card">
+  <div class="btns">
+    <button class="primary" onclick="saveConfig()">保存界面配置</button>
+    <button class="ghost" onclick="reboot()">重启设备</button>
+  </div>
+  <div class="tip">保存后屏幕立即更新，重启后继续使用这套配置。</div>
+</div>
+
+<div class="card danger-zone">
+  <h2>清除数据</h2>
+  <div class="btns">
+    <button class="danger" onclick="clearData('key')">删除车机密钥（保留 VIN）</button>
+    <button class="danger" onclick="clearData('vin')">删除 VIN 与密钥</button>
+    <button class="danger" onclick="clearData('all')">恢复出厂设置</button>
+  </div>
+  <div class="tip">删除密钥后需要重新配对：在车机中控屏确认并刷 NFC 卡。</div>
+</div>
+
+</div>
+<div id="toast"></div>
+
+<script>
+// 这里的初值只是 /api/config 返回前的占位，必须与 main.c 里的 k_default_dash / k_default_keys 保持一致，
+// 否则接口还没回来时下拉框会显示成旧布局（甚至全是"无"）。
+// 数字是指标/命令的枚举值：2=功率 19=车内温度 36=车门汇总 59=胎压健康 9=额定续航 18=充电口
+//                        1=车锁开关 3=前备箱开关 6=鸣笛 7=空调开关
+var cfg = { dash:[2,19,36,59,9,18], keys:[1,3,6,7], metrics:[], commands:[] };
+
+function toast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(function(){ t.classList.remove('show'); }, 2200);
+}
+
+function post(url, body){
+  return fetch(url, {
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body: body
+  }).then(function(r){ return r.json(); });
+}
+
+/** 选项按 cat 分组；同时给每个 option 记下分类，供下方标签显示 */
+function fillGrouped(sel, list, cur){
+  var order = [], map = {};
+  list.forEach(function(it){
+    var c = it.cat || '其它';
+    if (!map[c]){ map[c] = []; order.push(c); }
+    map[c].push(it);
+  });
+  order.forEach(function(c){
+    var og = document.createElement('optgroup');
+    og.label = c;
+    map[c].forEach(function(it){
+      var o = document.createElement('option');
+      o.value = it.id;
+      o.textContent = it.name;
+      o.dataset.cat = c;
+      og.appendChild(o);
+    });
+    sel.appendChild(og);
+  });
+  sel.value = cur;
+}
+
+/** 把当前选中项的分类显示在下拉框下方 */
+function showCat(sel){
+  var tag = sel.parentNode.querySelector('.cat-tag');
+  if (!tag) return;
+  var o = sel.options[sel.selectedIndex];
+  tag.textContent = (o && o.dataset.cat) ? o.dataset.cat : '';
+}
+
+function makeSlot(no, sel, tagText){
+  var box = document.createElement('div');
+  box.className = 'slot';
+
+  var badge = document.createElement('div');
+  badge.className = 'no';
+  badge.textContent = no;
+
+  var lb = document.createElement('label');
+  lb.textContent = tagText;
+
+  var tag = document.createElement('div');
+  tag.className = 'cat-tag';
+
+  sel.addEventListener('change', function(){ showCat(sel); });
+
+  box.appendChild(badge);
+  box.appendChild(lb);
+  box.appendChild(sel);
+  box.appendChild(tag);
+  showCat(sel);
+  return box;
+}
+
+function buildSelects(){
+  var dashGrid = document.getElementById('dashGrid');
+  var keyGrid  = document.getElementById('keyGrid');
+  dashGrid.innerHTML = '';
+  keyGrid.innerHTML  = '';
+
+  for (var i = 0; i < 6; i++){
+    var sel = document.createElement('select');
+    sel.id = 'dash' + i;
+    fillGrouped(sel, cfg.metrics, cfg.dash[i]);
+    var box = makeSlot(i + 1, sel, '格子');
+    dashGrid.appendChild(box);
+  }
+
+  for (var j = 0; j < 4; j++){
+    var sel2 = document.createElement('select');
+    sel2.id = 'key' + j;
+    fillGrouped(sel2, cfg.commands, cfg.keys[j]);
+    var box2 = makeSlot(j + 1, sel2, '按钮');
+    keyGrid.appendChild(box2);
+  }
+}
+
+function load(){
+  return fetch('/api/config').then(function(r){ return r.json(); }).then(function(d){
+    cfg = d;
+    document.getElementById('ap').textContent   = d.ap_ssid || '--';
+    document.getElementById('vin').textContent  = d.vin || '未设置';
+    document.getElementById('vinInput').value   = d.vin || '';
+    document.getElementById('paired').innerHTML =
+      d.paired ? '<span class="ok">已配对</span>' : '<span class="no">未配对</span>';
+    document.getElementById('hasKey').innerHTML =
+      d.has_key ? '<span class="ok">已保存</span>' : '<span class="no">无</span>';
+    buildSelects();
+  }).catch(function(){ toast('读取配置失败'); });
+}
+
+function saveVin(){
+  var v = (document.getElementById('vinInput').value || '').trim().toUpperCase();
+  if (v.length !== 17){
+    toast('VIN 必须是 17 位');
+    return;
+  }
+  post('/api/vin', 'vin=' + encodeURIComponent(v)).then(function(r){
+    if (r.ok){ toast('已保存，正在重启'); }
+    else { toast(r.error || '保存失败'); }
+  }).catch(function(){ toast('保存失败'); });
+}
+
+function saveConfig(){
+  var dash = [], keys = [];
+  for (var i = 0; i < 6; i++){ dash.push(document.getElementById('dash' + i).value); }
+  for (var j = 0; j < 4; j++){ keys.push(document.getElementById('key' + j).value); }
+  post('/api/config', 'dash=' + dash.join(',') + '&keys=' + keys.join(','))
+    .then(function(r){ toast(r.ok ? '已保存，屏幕已更新' : (r.error || '保存失败')); })
+    .catch(function(){ toast('保存失败'); });
+}
+
+function clearData(target){
+  if (!confirm('确定要清除吗？此操作不可撤销。')){ return; }
+  post('/api/clear', 'target=' + target).then(function(r){
+    if (r.ok){ toast('已清除，重启后生效'); load(); }
+    else { toast(r.error || '操作失败'); }
+  }).catch(function(){ toast('操作失败'); });
+}
+
+function reboot(){
+  if (!confirm('重启设备？')){ return; }
+  post('/api/reboot', '').then(function(){ toast('正在重启'); })
+    .catch(function(){});
+}
+
+load();
+</script>
+</body>
+</html>

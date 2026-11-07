@@ -1,0 +1,22 @@
+// 密钥角色定义（与 vehicle-command Go SDK keys.proto 一致）
+// 车辆为每个客户端公钥关联一个角色，用于决定该客户端可授权的命令范围。
+// 参见 protocol.md "Roles" 章节。
+syntax = "proto3";
+
+package Keys;
+
+option go_package = "github.com/teslamotors/vehicle-command/pkg/protocol/protobuf/keys";
+option java_package = "com.tesla.generated.keys";
+
+// 密钥在车辆白名单中的角色
+enum Role
+{
+    ROLE_NONE            = 0;  // 无角色
+    ROLE_SERVICE         = 1;  // 服务/维修密钥，可配对其他密钥、代表技师授权；可远程解锁、删除 Driver/Guest/Fleet Manager 密钥
+    ROLE_OWNER           = 2;  // 车主，可授权所有命令（含添加/删除其他用户密钥）
+    ROLE_DRIVER          = 3;  // 驾驶员，可执行大部分命令，不可管理其他用户密钥或修改 PIN 等访问控制
+    ROLE_FM              = 4;  // Fleet Manager，云端车主密钥；2023.38+ 车辆上不能通过 BLE 添加/删除其他用户密钥
+    ROLE_VEHICLE_MONITOR = 5;  // 车辆监控，仅可读取车辆数据（如位置），不可授权改变车辆状态的命令
+    ROLE_CHARGING_MANAGER = 6; // 充电管理，可读取车辆数据并授权与充电相关的命令
+    ROLE_GUEST           = 8;  // 访客，临时驾驶员密钥，用于租车等场景，有自动生命周期
+}

@@ -1,0 +1,105 @@
+// 签名与元数据相关定义（与 vehicle-command Go SDK signatures.proto 一致）
+// 用于 RoutableMessage.signature_data 及元数据 TLV 序列化（见 protocol.md "Metadata serialization"）。
+// 元数据按 tag-length-value 编码，按 tag 升序排列后拼接，末尾追加 0xFF。
+syntax = "proto3";
+
+package Signatures;
+
+option go_package = "github.com/teslamotors/vehicle-command/pkg/protocol/protobuf/signatures";
+option java_package = "com.tesla.generated.signatures";
+
+// 元数据 TLV 序列化使用的标签（与 tesla_build_metadata / tesla_build_response_metadata 配合）
+enum Tag
+{
+    TAG_SIGNATURE_TYPE  = 0;   // 签名/加密类型
+    TAG_DOMAIN          = 1;   // 目标域
+    TAG_PERSONALIZATION = 2;   // 个性化（VIN，17 字节）
+    TAG_EPOCH           = 3;   // 域启动时生成的 16 字节 epoch_id
+    TAG_EXPIRES_AT      = 4;   // 命令过期时间（域时钟秒数），大端 4 字节
+    TAG_COUNTER         = 5;   // 防重放计数器，大端 4 字节
+    TAG_CHALLENGE       = 6;   // 握手请求中的 challenge（如 UUID）
+    TAG_FLAGS           = 7;   // 请求标志位掩码，大端 4 字节
+    TAG_REQUEST_HASH   = 8;   // 响应解密时：原始请求的 request_hash（如 signature_type + GCM tag）
+    TAG_FAULT           = 9;   // 故障码
+    TAG_END             = 255; // 元数据结束标记（0xFF）
+}
+
+// 签名/加密类型：用于请求认证与响应解密
+enum SignatureType
+{
+    SIGNATURE_TYPE_AES_GCM = 0;                  // AES-GCM 加密（未个性化）
+    SIGNATURE_TYPE_AES_GCM_PERSONALIZED = 5;     // 带 VIN 的 AES-GCM，BLE 常用
+    SIGNATURE_TYPE_HMAC                 = 6;     // HMAC-SHA256
+    reserved 7;
+    SIGNATURE_TYPE_HMAC_PERSONALIZED    = 8;     // 带 VIN 的 HMAC，Fleet API 常用
+    SIGNATURE_TYPE_AES_GCM_RESPONSE     = 9;     // 响应解密用（AES_GCM_Response_data）
+}
+
+// 签名者身份：公钥（65 字节未压缩点）或 handle
+message KeyIdentity {
+    reserved 2;
+    oneof identity_type {
+        bytes public_key = 1;  // ENCODE_PUBLIC(C)：0x04 || x(32) || y(32)
+        uint32 handle = 3;
+    }
+}
+
+// AES-GCM 个性化签名数据：请求加密时随 RoutableMessage.signature_data 发送
+// 与元数据 M 一起用于 AAD = SHA256(M)，加密 P 得到 ciphertext 与 tag
+message AES_GCM_Personalized_Signature_Data {
+    bytes   epoch       = 1;   // 来自 session_info.epoch
+    bytes   nonce       = 2;   // 12 字节随机 IV
+    uint32  counter     = 3;   // 单调递增，同 epoch 内不可重复
+    fixed32 expires_at  = 4;   // 域时钟下的过期时间（秒）
+    bytes   tag         = 5;   // 16 字节 GCM 认证标签
+}
+
+// AES-GCM 响应签名数据：车辆在加密响应中返回，用于客户端解密
+message AES_GCM_Response_Signature_Data {
+    bytes  nonce   = 1;  // 12 字节
+    uint32 counter = 2;  // 响应计数器
+    bytes  tag     = 3;  // 16 字节 GCM 标签
+}
+
+message HMAC_Signature_Data {
+    bytes tag = 1;
+}
+
+message HMAC_Personalized_Signature_Data {
+    bytes   epoch       = 1;
+    uint32  counter     = 2;
+    fixed32 expires_at  = 3;
+    bytes   tag         = 4;
+}
+
+// 签名数据：oneof 选择 HMAC 或 AES-GCM 请求/响应
+message SignatureData {
+    reserved 7;
+    KeyIdentity    signer_identity          = 1;  // 客户端公钥
+    oneof sig_type {
+        AES_GCM_Personalized_Signature_Data AES_GCM_Personalized_data = 5;
+        HMAC_Signature_Data                 session_info_tag          = 6;  // 握手响应完整性校验
+        HMAC_Personalized_Signature_Data    HMAC_Personalized_data    = 8;
+        AES_GCM_Response_Signature_Data     AES_GCM_Response_data     = 9;
+    }
+}
+
+message GetSessionInfoRequest {
+    KeyIdentity key_identity = 1;
+}
+
+enum Session_Info_Status {
+    SESSION_INFO_STATUS_OK = 0;
+    SESSION_INFO_STATUS_KEY_NOT_ON_WHITELIST = 1;
+}
+
+// 会话信息：握手响应中车辆返回，用于后续命令的元数据与密钥派生
+// 见 protocol.md "Response" 与 "Key Agreement"
+message SessionInfo {
+    uint32  counter            = 1;   // 防重放计数器，后续命令需递增
+    bytes   publicKey          = 2;   // 车辆公钥 V，用于 ECDH 得到 K
+    bytes   epoch              = 3;   // 域当前 epoch_id
+    fixed32 clock_time         = 4;   // 域时钟（秒），用于计算 expires_at
+    Session_Info_Status status = 5;
+    uint32  handle             = 6;
+}

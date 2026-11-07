@@ -1,0 +1,26 @@
+// 通用错误码（与 vehicle-command Go SDK errors.proto 一致）
+// 用于 FromVCSECMessage.nominalError 等应用层错误响应。
+syntax = "proto3";
+
+package Errors;
+
+option go_package = "github.com/teslamotors/vehicle-command/pkg/protocol/protobuf/errors";
+option java_package = "com.tesla.generated.errors";
+
+// 通用错误枚举
+enum GenericError_E
+{
+    GENERICERROR_NONE = 0;                        // 无错误
+    GENERICERROR_UNKNOWN = 1;                     // 未知错误
+    GENERICERROR_CLOSURES_OPEN = 2;               // 门/盖未关
+    GENERICERROR_ALREADY_ON = 3;                  // 已处于该状态
+    GENERICERROR_DISABLED_FOR_USER_COMMAND = 4;    // 该命令已被禁用（用户/策略）
+    GENERICERROR_VEHICLE_NOT_IN_PARK = 5;          // 车辆未挂 P 档
+    GENERICERROR_UNAUTHORIZED = 6;                // 未授权
+    GENERICERROR_NOT_ALLOWED_OVER_TRANSPORT = 7;  // 当前传输方式（如 BLE/Fleet API）不允许该命令
+}
+
+// 名义错误消息（携带通用错误码）
+message NominalError {
+    GenericError_E  genericError = 1;
+}

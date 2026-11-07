@@ -1,0 +1,234 @@
+// 车辆安全域（VCSEC）消息定义（与 vehicle-command Go SDK vcsec.proto 一致）
+// 发往 DOMAIN_VEHICLE_SECURITY 的 RoutableMessage.payload 解码为本包中的 ToVCSECMessage 或 UnsignedMessage；
+// 车辆返回的 payload 解码为 FromVCSECMessage。
+// 参见：vehicle-command/pkg/protocol/protobuf/vcsec.proto
+syntax = "proto3";
+
+package VCSEC;
+
+option java_package = "com.tesla.generated.vcsec";
+option go_package = "github.com/teslamotors/vehicle-command/pkg/protocol/protobuf/vcsec";
+
+import "keys.proto";
+import "errors.proto";
+
+// VCSEC 侧签名类型（与 Signatures 包区分）。PRESENT_KEY：密钥在场认证（如 BLE 配对、添加密钥时）
+enum SignatureType
+{
+    SIGNATURE_TYPE_NONE = 0;
+    SIGNATURE_TYPE_PRESENT_KEY  = 2;
+}
+
+// 带签名的消息：内层为 UnsignedMessage 的序列化字节；用于需要“在场”认证的命令（如添加密钥），无需 ECDH 会话加密
+message SignedMessage {
+    bytes protobufMessageAsBytes = 2;  // 序列化后的 UnsignedMessage
+    SignatureType signatureType = 3;
+}
+
+// 发往 VCSEC 的顶层消息（当使用 PRESENT_KEY 认证时）
+message ToVCSECMessage {
+    SignedMessage signedMessage = 1;
+}
+
+// 密钥标识：公钥的 SHA1，用于白名单条目、WhitelistOperation_status.signerOfOperation 等
+message KeyIdentifier {
+    bytes publicKeySHA1 = 1;
+}
+
+// 密钥形态：添加密钥时描述设备类型（NFC 卡、手机、云钥匙等）
+enum KeyFormFactor
+{
+    KEY_FORM_FACTOR_UNKNOWN                 = 0;
+    KEY_FORM_FACTOR_NFC_CARD                = 1;
+    KEY_FORM_FACTOR_IOS_DEVICE              = 6;
+    KEY_FORM_FACTOR_ANDROID_DEVICE          = 7;
+    KEY_FORM_FACTOR_CLOUD_KEY               = 9;
+}
+
+// 密钥元数据，如 keyFormFactor（WhitelistOperation.metadataForKey）
+message KeyMetadata
+{
+    KeyFormFactor           keyFormFactor = 1;
+}
+
+// 原始公钥：65 字节未压缩点（0x04 || x || y）
+message PublicKey {
+    bytes PublicKeyRaw = 1;
+}
+
+// 信息请求类型：查询车辆状态或白名单
+enum InformationRequestType {
+    INFORMATION_REQUEST_TYPE_GET_STATUS = 0;       // 车辆状态（门锁、睡眠、闭合件等）
+    INFORMATION_REQUEST_TYPE_GET_WHITELIST_INFO = 5;
+    INFORMATION_REQUEST_TYPE_GET_WHITELIST_ENTRY_INFO = 6;
+}
+
+// 信息请求：GET_STATUS / GET_WHITELIST_INFO 等，可带 keyId / publicKey / slot
+message InformationRequest {
+    InformationRequestType      informationRequestType = 1;
+    oneof key {
+        KeyIdentifier keyId = 2;
+        bytes         publicKey = 3;
+        uint32        slot = 4;
+    }
+}
+
+// 远程无钥匙动作（RKE）：解锁、锁车、远程驾驶、自动上锁、唤醒等
+enum RKEAction_E {
+    RKE_ACTION_UNLOCK = 0;
+    RKE_ACTION_LOCK = 1;
+    RKE_ACTION_REMOTE_DRIVE       = 20;
+    RKE_ACTION_AUTO_SECURE_VEHICLE = 29;
+    RKE_ACTION_WAKE_VEHICLE = 30;
+}
+
+// 权限变更：携带公钥与角色（如 addKeyToWhitelistAndAddPermissions 时设为 ROLE_OWNER）
+message PermissionChange {
+    PublicKey key               = 1;
+    uint32    secondsToBeActive = 3;
+    Keys.Role keyRole           = 4;
+}
+
+// 白名单操作：添加/删除密钥、修改权限等；addKeyToWhitelistAndAddPermissions 为常用添加并赋权
+message WhitelistOperation {
+    oneof sub_message {
+        PublicKey          addPublicKeyToWhitelist = 1;
+        PublicKey          removePublicKeyFromWhitelist = 2;
+        PermissionChange   addPermissionsToPublicKey = 3;
+        PermissionChange   removePermissionsFromPublicKey = 4;
+        PermissionChange   addKeyToWhitelistAndAddPermissions = 5;
+        PermissionChange   updateKeyAndPermissions = 7;
+        PermissionChange   addImpermanentKey = 8;
+        PermissionChange   addImpermanentKeyAndRemoveExisting = 9;
+        bool               removeAllImpermanentKeys = 16;
+    }
+    KeyMetadata  metadataForKey = 6;  // 可选，如 keyFormFactor
+}
+
+// 闭合件动作类型（与官方 vcsec.proto 一致）
+enum ClosureMoveType_E {
+    CLOSURE_MOVE_TYPE_NONE = 0;
+    CLOSURE_MOVE_TYPE_MOVE = 1;
+    CLOSURE_MOVE_TYPE_STOP = 2;
+    CLOSURE_MOVE_TYPE_OPEN = 3;
+    CLOSURE_MOVE_TYPE_CLOSE = 4;
+}
+
+// 闭合件请求：前后备箱、四门、充电口、货箱盖。字段号与官方 proto 保持一致，
+// 否则车辆会拒绝或忽略命令。
+message ClosureMoveRequest {
+    ClosureMoveType_E   frontDriverDoor = 1;
+    ClosureMoveType_E   frontPassengerDoor = 2;
+    ClosureMoveType_E   rearDriverDoor = 3;
+    ClosureMoveType_E   rearPassengerDoor = 4;
+    ClosureMoveType_E   rearTrunk = 5;
+    ClosureMoveType_E   frontTrunk = 6;
+    ClosureMoveType_E   chargePort = 7;
+    ClosureMoveType_E   tonneau = 8;
+}
+
+// 未签名负载：实际命令内容，经 RoutableMessage 加密或明文携带。InformationRequest/RKEAction 可走未认证通道；WhitelistOperation 需 SignedMessage + PRESENT_KEY
+message UnsignedMessage {
+    reserved 6,7,10,12,13;
+    oneof sub_message {
+        InformationRequest           InformationRequest = 1;
+        RKEAction_E                  RKEAction = 2;
+        ClosureMoveRequest           closureMoveRequest = 4;
+        WhitelistOperation           WhitelistOperation = 16;
+    }
+}
+
+// 门/盖/充电口等闭合状态（Go SDK ClosureState_E）
+enum ClosureState_E {
+    CLOSURESTATE_CLOSED = 0;
+    CLOSURESTATE_OPEN = 1;
+    CLOSURESTATE_AJAR = 2;
+    CLOSURESTATE_UNKNOWN = 3;
+    CLOSURESTATE_FAILED_UNLATCH = 4;
+    CLOSURESTATE_OPENING = 5;
+    CLOSURESTATE_CLOSING = 6;
+}
+
+// 车辆锁状态
+enum VehicleLockState_E {
+    VEHICLELOCKSTATE_UNLOCKED = 0;
+    VEHICLELOCKSTATE_LOCKED = 1;
+    VEHICLELOCKSTATE_INTERNAL_LOCKED = 2;
+    VEHICLELOCKSTATE_SELECTIVE_UNLOCKED = 3;
+}
+
+// 各闭合件状态：门、前后备箱、充电口、卷帘等（VehicleStatus.closureStatuses）
+message ClosureStatuses
+{
+    ClosureState_E   frontDriverDoor = 1;
+    ClosureState_E   frontPassengerDoor = 2;
+    ClosureState_E   rearDriverDoor = 3;
+    ClosureState_E   rearPassengerDoor = 4;
+    ClosureState_E   rearTrunk = 5;
+    ClosureState_E   frontTrunk = 6;
+    ClosureState_E   chargePort = 7;
+    ClosureState_E   tonneau = 8;
+}
+
+// 车辆睡眠状态：未知/唤醒/休眠
+enum VehicleSleepStatus_E {
+    VEHICLE_SLEEP_STATUS_UNKNOWN = 0;
+    VEHICLE_SLEEP_STATUS_AWAKE = 1;
+    VEHICLE_SLEEP_STATUS_ASLEEP = 2;
+}
+
+// 用户在场：如手机钥匙在车内
+enum UserPresence_E {
+    VEHICLE_USER_PRESENCE_UNKNOWN = 0;
+    VEHICLE_USER_PRESENCE_NOT_PRESENT = 1;
+    VEHICLE_USER_PRESENCE_PRESENT = 2;
+}
+
+// 车辆状态：由 InformationRequest(GET_STATUS) 的响应经 FromVCSECMessage.vehicleStatus 返回
+message VehicleStatus {
+    ClosureStatuses        closureStatuses = 1;
+    VehicleLockState_E     vehicleLockState = 2;
+    VehicleSleepStatus_E   vehicleSleepStatus = 3;
+    UserPresence_E         userPresence = 4;
+}
+
+// ---------- 以下为精简字段，仅解析用到的；未列出的字段解码时自动跳过。Go SDK 见 WhitelistOperation_status / SignedMessage_status / CommandStatus ----------
+
+// 操作结果（Go SDK OperationStatus_E）：OK / WAIT / ERROR，用于 CommandStatus.operationStatus 等
+enum OperationStatus_E {
+    OPERATIONSTATUS_OK = 0;
+    OPERATIONSTATUS_WAIT = 1;
+    OPERATIONSTATUS_ERROR = 2;
+}
+
+// 白名单操作状态（Go SDK WhitelistOperation_status）。精简：1/2/3 用 uint32；完整版含 WhitelistOperation_information_E、KeyIdentifier、OperationStatus_E
+message WhitelistOperation_status {
+    uint32 whitelistOperationInformation = 1;  // 对应 WhitelistOperation_information_E（如 WHITELIST_FULL、NO_PERMISSION_TO_ADD）
+    uint32 signerOfOperation = 2;              // 执行该操作的密钥标识
+    uint32 operationForKeyInWhitelist = 3;
+}
+
+// 签名消息状态（Go SDK SignedMessage_status）。counter 为防重放计数；signedMessageFault 对应 SignedMessage_information_E（如 FAULT_INVALID_TOKEN）
+message SignedMessage_status {
+    uint32 counter = 1;
+    uint32 signedMessageFault = 2;
+}
+
+// 命令状态：FromVCSECMessage.commandStatus = 4，携带 RKE/Whitelist 等命令的执行结果。本精简版 oneof 使用字段 5/6（与部分固件 wire 一致）
+message CommandStatus {
+    OperationStatus_E operationStatus = 1;
+    oneof sub_message {
+        WhitelistOperation_status whitelistOperationStatus = 5;
+        SignedMessage_status signedMessageStatus = 6;
+    }
+}
+
+// VCSEC 返回的顶层消息：vehicleStatus（GET_STATUS 响应）、commandStatus（命令结果）、nominalError（应用层错误）等
+message FromVCSECMessage {
+    reserved 6 to 10;
+    oneof sub_message {
+        VehicleStatus               vehicleStatus = 1;   // GET_STATUS 的响应
+        CommandStatus               commandStatus = 4;   // 命令结果（解锁/加钥等）
+        Errors.NominalError         nominalError = 46;
+    }
+}

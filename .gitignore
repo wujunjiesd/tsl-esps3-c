@@ -1,0 +1,26 @@
+#vscode
+.vscode
+
+#build
+.build
+build
+managed_components
+sdkconfig
+sdkconfig.old
+dependencies.lock
+
+#clangd
+.cache
+
+#cmake
+.idea
+
+#protoc-c
+proto-c
+
+#preview (PC 端渲染临时产物)
+tools/preview/ui_preview
+tools/preview/*.ppm
+
+#macOS
+.DS_Store

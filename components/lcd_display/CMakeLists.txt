@@ -1,0 +1,19 @@
+idf_component_register(
+    SRCS
+        "lcd_display.c"
+        "ui_draw.c"
+        "ui_pages.c"
+        "fonts/font_data.c"
+    INCLUDE_DIRS
+        "include"
+        "fonts"
+    REQUIRES
+        board
+    PRIV_REQUIRES
+        esp_lcd
+        esp_lcd_axs15231b
+        esp_lcd_touch
+        esp_io_expander
+        esp_driver_gpio
+        esp_driver_spi
+)
