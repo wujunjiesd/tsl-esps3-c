@@ -337,3 +337,9 @@ W (xxx) LCD: 背光硬件 -> 开
 - [xiaozhi-esp32 板级配置](https://github.com/78/xiaozhi-esp32)
 - [ESP-IDF NimBLE 示例](https://github.com/espressif/esp-idf/tree/master/examples/bluetooth/nimble)
 - [esp_lcd_axs15231b](https://components.espressif.com/components/espressif/esp_lcd_axs15231b)
+
+## 赞赏
+
+如果这个项目对你有帮助，欢迎扫码请作者喝杯咖啡。
+
+<img src="docs/donate.jpg" alt="赞赏码" width="300">
